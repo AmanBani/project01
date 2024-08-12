@@ -1,21 +1,19 @@
 const express = require('express');
-const { Pool } = require('pg'); // Import the pg Pool
+const mysql = require('mysql');
 const cors = require('cors');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// PostgreSQL client setup
-const pool = new Pool({
-    user: 'postgres',
-    host: 'localhost',
+const db = mysql.createConnection({
+    host: "localhost",
+    user: 'root',
+    password: '',
     database: 'tuf',
-    password: '', // Your PostgreSQL password
-    port: 5432, // Default PostgreSQL port
 });
 
-pool.connect((err) => {
+db.connect((err) => {
     if (err) {
         console.error('Error connecting to the database:', err.stack);
         return;
@@ -26,50 +24,49 @@ pool.connect((err) => {
 // Fetch all data
 app.get('/data', (req, res) => {
     const sql = "SELECT * FROM data";
-    pool.query(sql, (err, result) => {
+    db.query(sql, (err, data) => {
         if (err) return res.json(err);
-        return res.json(result.rows);
+        return res.json(data);
     });
 });
 
 // Insert new data
 app.post('/data', (req, res) => {
-    const sql = "INSERT INTO data (\"Question\", \"Answer\") VALUES ($1, $2) RETURNING *";
+    const sql = "INSERT INTO data (`Question`, `Answer`) VALUES (?)";
     const values = [
         req.body.Question,
         req.body.Answer
     ];
-    pool.query(sql, values, (err, result) => {
+    db.query(sql, [values], (err, result) => {
         if (err) return res.json(err);
-        return res.json(result.rows[0]);
+        return res.json(result);
     });
 });
 
 // Update existing data
 app.put('/data/:que', (req, res) => {
-    const sql = "UPDATE data SET \"Question\" = $1, \"Answer\" = $2 WHERE \"Question\" = $3 RETURNING *";
+    const sql = "UPDATE data SET `Question` = ?, `Answer` = ? WHERE `Question` = ?";
 
     const que = req.params.que;
     const values = [
         req.body.Question,
-        req.body.Answer,
-        que
+        req.body.Answer
     ];
 
-    pool.query(sql, values, (err, result) => {
+    db.query(sql, [...values, que], (err, result) => {
         if (err) return res.json({ Message: "Error inside Server" });
-        return res.json(result.rows[0]);
+        return res.json(result);
     });
 });
 
 // Delete specific data
 app.delete('/data/:que', (req, res) => {
-    const sql = "DELETE FROM data WHERE \"Question\" = $1 RETURNING *";
+    const sql = "DELETE FROM data WHERE `Question` = ?";
 
     const que = req.params.que;
-    pool.query(sql, [que], (err, result) => {
+    db.query(sql, [que], (err, result) => {
         if (err) return res.json({ Message: "Error inside Server" });
-        return res.json(result.rows[0]);
+        return res.json(result);
     });
 });
 
